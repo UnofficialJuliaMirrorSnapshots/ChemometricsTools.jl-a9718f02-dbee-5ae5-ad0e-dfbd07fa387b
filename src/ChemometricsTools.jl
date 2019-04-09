@@ -22,7 +22,8 @@ module ChemometricsTools
 
     include("DistanceMeasures.jl") #Has Docs
     export SquareEuclideanDistance, EuclideanDistance, ManhattanDistance,
-        GaussianKernel, CauchyKernel, LinearKernel, Kernel
+        GaussianKernel, CauchyKernel, LinearKernel, Kernel, NearestNeighbors,
+        AdjacencyMatrix, InClassAdjacencyMatrix, OutOfClassAdjacencyMatrix
 
     include("Transformations.jl") #Has Docs: Box Cox Omitted for now...
     export Transform, PipelineInPlace, Pipeline, QuantileTrim, Center, Scale,
@@ -37,7 +38,8 @@ module ChemometricsTools
 
     include("ClassificationModels.jl") #Has docs
     export KNN, ProbabilisticNeuralNetwork, GaussianDiscriminant, LogisticRegression, MultinomialSoftmaxRegression,
-        GaussianNaiveBayes, HighestVoteOneHot, ConfidenceEllipse, LinearPerceptronSGD, LinearPerceptronBatch 
+        GaussianNaiveBayes, HighestVoteOneHot, ConfidenceEllipse, LinearPerceptronSGD, LinearPerceptronBatch,
+        HLDA
 
     include("Clustering.jl") #Has Docs
     export TotalClusterSS, WithinClusterSS, BetweenClusterSS, KMeansClustering, KMeans
@@ -83,7 +85,7 @@ module ChemometricsTools
     export Universe, GaussianBand, LorentzianBand
 
     include("SimpleGAs.jl") #No Docs yet :(
-    export Lifeform, SinglePointCrossOver, Mutate
+    export BinaryLifeform, Lifeform, SinglePointCrossOver, Mutate
 
     #Generic function for pulling data from within this package.
     #If enough datasets are provided then the data/dataloading could be a seperate package...
@@ -121,6 +123,5 @@ module ChemometricsTools
         read( Base.joinpath( datapath, readdir(datapath)[file] ) )
     end
     export ChemometricsToolsDataset, ChemometricsToolsDatasets
-    #ToDo: Add more unit tests to test/runtests.jl...
 
 end # module
