@@ -10,7 +10,7 @@ module ChemometricsTools
 
     include("InHouseStats.jl") #Has Docs
     export EmpiricalQuantiles, Update!, Remove!, Update, Remove, RunningMean, RunningVar,
-        Variance, Mean, rbinomial, Skewness, SampleSkewness
+        Variance, Mean, rbinomial, Skewness, SampleSkewness, PermutedVectorPair
 
     include("ClassificationMetrics.jl") #Has Docs
     export LabelEncoding, IsColdEncoded, HotToCold, ColdToHot, MulticlassStats,
@@ -52,7 +52,8 @@ module ChemometricsTools
 
     include("RegressionModels.jl") # Has Docs
     export ClassicLeastSquares, OrdinaryLeastSquares, RidgeRegression, PrincipalComponentRegression,
-        PartialLeastSquares, KernelRidgeRegression, LSSVM, ExtremeLearningMachine, PredictFn, sigmoid
+        PartialLeastSquares, KernelRidgeRegression, LSSVM, ExtremeLearningMachine, PredictFn, sigmoid,
+        MonotoneRegression
 
     include("Trees.jl") #Has Docs: Omitted StumpOrNode & StumpOrNodeRegress
     export OneHotOdds, entropy, gini, ssd, ClassificationTree, RegressionTree, CART
@@ -70,7 +71,8 @@ module ChemometricsTools
     export PSO, Particle, Bounds
 
     include("CurveResolution.jl") #Has Docs
-    export BTEMobjective, BTEM, NMF, SIMPLISMA, MCRALS, FNNLS
+    export BTEMobjective, BTEM, NMF, SIMPLISMA, MCRALS, FNNLS, UnimodalFixedUpdate,
+        UnimodalUpdate
 
     include("PlottingTools.jl") #Has Docs
     export QQ, BlandAltman, plotchem, rectangle, IntervalOverlay
@@ -83,7 +85,7 @@ module ChemometricsTools
     export MultiCenter, MultiScale, MultiNorm, MultiPCA
 
     include("KernelDensityGenerator.jl") #Has Docs
-    export Universe, GaussianBand, LorentzianBand
+    export Universe, SpectralArray, GaussianBand, LorentzianBand
 
     include("SimpleGAs.jl") #No Docs yet :(
     export BinaryLifeform, Lifeform, SinglePointCrossOver, Mutate
@@ -107,6 +109,7 @@ module ChemometricsTools
         dircontents = [ f for f in dircontents if f != "Readme.md" ]
         return Dict( (1:length(dircontents)) .=> dircontents )
     end
+
     function ChemometricsToolsDataset(filename::String)
         if filename == "tecator.csv"
             println(TecatorStatement)
@@ -117,6 +120,7 @@ module ChemometricsTools
             println("Don't load the markdown Readme as a csv... You're better than this.")
         end
     end
+
     function ChemometricsToolsDataset(file::Int)
         if readdir(datapath)[file] == "tecator.csv"
             println(TecatorStatement)

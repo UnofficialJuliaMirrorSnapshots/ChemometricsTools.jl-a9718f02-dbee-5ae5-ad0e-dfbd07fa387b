@@ -1,33 +1,9 @@
 #!/usr/bin/env julia
-
 #Start Test Script
 using ChemometricsTools
 using Test
 #Pkg.test("ChemometricsTools")
 #Pkg.test()
-
-#FNNLS tests...
-# a = reshape( [73,111,52,87, 7,4, 46,72,27,80,89 , 71], 4,3)
-# b = [96,7, 68,10]
-# FNNLS(a, b)
-
-# a = randn(4,4);
-# b = randn(4);
-# x = FNNLS( a,  b)
-#
-# #Torture test...
-# counterrs = 0
-# for i in 1:10000
-#     a = randn(4,4);
-#     b = randn(4);
-#     x = FNNLS( a,  b)
-#     if any(x .< -1e-2)
-#         counterrs += 1
-#     end
-# end
-# counterrs
-
-
 
 @testset "Transformations" begin
     simplearray = [[1,2,3] [1,2,3]];
@@ -101,4 +77,14 @@ end
     c = FNNLS(a, b)
     @test all( [0.649, -1e-6, -1e-6] .< c )
     @test all( c .< [0.651,1e-6,1e-6] )
+end
+
+@testset "MonotonicRegression Test" begin
+    #Compared with isoreg from R
+    a = MonotoneRegression( [1,0,4,3,3,5,4,2,0] .+ 0.0)
+    b = MonotoneRegression( [1,0,4,3,3,5,4,2,3] .+ 0.0)
+    c = MonotoneRegression( [1,0,0,0,1] .+ 0.0)
+    @test sum(a - [0.5, 0.5, 3, 3, 3, 3, 3, 3, 3]) < 1e-8
+    @test sum(b - [0.5, 0.5, 3.33333333333, 3.3333333333, 3.333333333333, 3.5, 3.5, 3.5, 3.5]) < 1e-8
+    @test all(c .== [0.25,0.25,0.25,0.25,1.0]) || all(c .== [1.0,0.25,0.25,0.25,0.25])
 end

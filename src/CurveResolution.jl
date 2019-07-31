@@ -111,6 +111,7 @@ end
     FNNLS( A, b; LHS = false, maxiters = 500 )
 Uses an implementation of Bro et. al's Fast Non-Negative Least Squares on the matrix `A` and vector `b`.
 Returns regression coefficients in the form of a vector.
+
 Bro, R., de Jong, S. (1997) A fast non-negativity-constrained least squares algorithm. Journal of Chemometrics, 11, 393-401.
 """
 function FNNLS(A, b; maxiters = 500)
@@ -155,15 +156,117 @@ function FNNLS(A, b; maxiters = 500)
 end
 
 """
-    MCRALS(X, C, S = nothing; norm = (false, false), Factors = 1, maxiters = 20, nonnegative = (false, false) )
+    UnimodalFixedUpdate(x)
+This function performs a unimodal least squares update at a fixed maximum for a vector x.
+This is faster then UnimodalUpdate() but, is less accurate.
+
+Bro R., Sidiropoulos N. D.. Least Squares Algorithms Under Unimodality and Non-Negativity Constraints
+"""
+function UnimodalFixedUpdate(x)
+    bins = length(x)
+    if bins == 1
+        return x
+    end
+    maxindx = argmax(x)[1]
+    #Handle edge cases
+    if (maxindx == 1)
+        return reverse(MonotoneRegression(reverse(x)))
+    elseif (maxindx == bins)
+        return MonotoneRegression(x)
+    end
+    bLeft = MonotoneRegression(x[1:(maxindx-1)])
+    bRight = reverse(MonotoneRegression(reverse(x[(maxindx+1):end])))
+    if x[maxindx] > max( bLeft[maxindx-1], bRight[1] )
+       return [bLeft; x[maxindx]; bRight];
+    end
+    return [bLeft; x[maxindx]; bRight]
+end
+
+"""
+    UnimodalUpdate(x)
+
+This function performs a unimodal least squares update for a vector x.
+This is slower then UnimodalUpdate() but, is more accurate.
+
+Bro R., Sidiropoulos N. D.. Least Squares Algorithms Under Unimodality and Non-Negativity Constraints. Journal of Chemometrics, June 3, 1997
+"""
+function UnimodalUpdate(x)
+    bins = length(x);
+    if bins == 1
+        return x
+    end
+    maxindx = argmax(x)[1]
+    bLeft = MonotoneRegression(x)
+    bRight = reverse(MonotoneRegression(reverse(x)))
+    (SSE, BestSSE) = (Inf, Inf)
+    (b, bestB) = (zeros( bins ),zeros( bins )) #Dummy initialization
+    for (indx, value) in enumerate(bRight .+ bLeft )
+        if indx == 1
+            bRightFine = reverse(MonotoneRegression(reverse(x[(indx+1):end])))
+            b = [ x[indx]; bRightFine ]
+        elseif indx == bins
+            bLeftFine = MonotoneRegression(x[1:(indx-1)])
+            b = [ bLeftFine; x[indx] ]
+        elseif (x[indx] >= (value / 2.0)) #&& (indx > 1) && (indx < bins)
+            bLeftFine = MonotoneRegression(x[1:(indx-1)])
+            bRightFine = reverse(MonotoneRegression(reverse(x[(indx+1):end])))
+            b = [ bLeftFine; x[indx]; bRightFine ]
+        end
+        SSE = sum( (b .- x) .^ 2)
+        if SSE < BestSSE
+            bestB = deepcopy(b);
+            BestSSE = SSE;
+        end
+    end
+    return bestB
+end
+
+"""
+    UnimodalLeastSquares(x)
+
+This function performs a unimodal least squares regression for a matrix A and b (X and Y).
+
+Bro R., Sidiropoulos N. D.. Least Squares Algorithms Under Unimodality and Non-Negativity Constraints.Journal of Chemometrics, June 3, 1997
+"""
+function UnimodalLeastSquares(A, b; maxiters = 1000, fixed = false)
+    (obs, vars) = size( A )
+    obspreds = size( b )
+    (obs, preds) = (length(obspreds) > 1) ? obspreds : (obspreds, 1)
+    B = randn( vars, preds );
+    #Obs x Vars * Vars x Preds = Obs x Preds
+    iter = 0
+    LastB = copy(B) * Inf
+    while (sum((LastB .- B) .^ 2) / sum(B .^ 2) > 1e-15) && (iter < maxiters)
+        LastB = copy(B)
+        for var in 1:vars
+            Cols = vcat(collect.([1:(var-1), (var+1):vars])...)
+            y = b - ( A[:,Cols] * B[Cols,:] )
+            beta = LinearAlgebra.pinv(A[ :, var ]) * y
+            if length(beta) == 1
+                B[var, :] = beta
+            else
+                B[var, :] = (fixed) ? UnimodalFixedUpdate( beta' ) : UnimodalUpdate( beta' )
+            end
+        end
+        iter += 1
+    end
+    return B
+end
+
+"""
+    MCRALS(X, C, S = nothing; norm = (false, false), Factors = 1, maxiters = 20, constraintiters = 500, nonnegative = (false, false), unimodalS = false  )
 Performs Multivariate Curve Resolution using Alternating Least Squares on `X` taking initial estimates for `S` or `C`.
-S or C can be constrained by their `norm`, or by nonnegativity using `nonnegative` arguments.
+S or C can be constrained by their `norm`, or by nonnegativity using `nonnegative` arguments. S can be constrained by
+unimodality(EXPERIMENTAL).
+
 The number of resolved `Factors` can also be set.
+
 Tauler, R. Izquierdo-Ridorsa, A. Casassas, E. Simultaneous analysis of several spectroscopic titrations with self-modelling curve resolution.Chemometrics and Intelligent Laboratory Systems. 18, 3, (1993), 293-300.
 """
 function MCRALS(X, C, S = nothing; norm = (false, false),
-                Factors = 1, maxiters = 20,
-                nonnegative = (false, false) )
+                Factors = 1, maxiters = 20, constraintiters = 500,
+                nonnegative = (false, false),
+                unimodalS = false, fixedunimodal = false )
     @assert all( isa.( [ C , S ], Nothing ) ) == false
     lowestErr = Inf
     err = zeros(maxiters)
@@ -179,7 +282,7 @@ function MCRALS(X, C, S = nothing; norm = (false, false),
         if !isS
             if nonnegative[2]
                 for obs in 1 : size( X )[ 1 ]
-                    C[obs,:] = FNNLS(S', X[obs,:])
+                    C[obs,:] = FNNLS(S', X[obs,:]; maxiters = constraintiters)
                 end
             else
                 C = X * LinearAlgebra.pinv(S)
@@ -189,9 +292,15 @@ function MCRALS(X, C, S = nothing; norm = (false, false),
             D = C * S
         end
         if !isC
-            if nonnegative[1]
+            if unimodalS
+                S = UnimodalLeastSquares(C, X; maxiters = constraintiters, fixed = fixedunimodal)
+                if nonnegative[1]
+                    #There may be a better way to do this but the paper states force positivity...
+                    S = map(x -> (x < 0.0) ? 0.0 : x, S)
+                end
+            elseif nonnegative[1]
                 for var in 1:size(X)[2]
-                    S[:,var] = FNNLS(C, vec(X[:,var]))
+                    S[:,var] = FNNLS(C, vec(X[:,var]); maxiters = constraintiters)
                 end
             else
                 S = LinearAlgebra.pinv(C) * X
