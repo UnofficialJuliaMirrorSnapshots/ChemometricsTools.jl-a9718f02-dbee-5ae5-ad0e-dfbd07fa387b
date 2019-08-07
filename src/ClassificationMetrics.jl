@@ -1,3 +1,5 @@
+using Dates
+using CSV
 """
     IsColdEncoded(Y)
 
@@ -147,21 +149,24 @@ end
 Converts a dictionary of statistics which is returned from `MulticlassStats` into a labelled dataframe.
 This is an intermediate step for automated report generation.
 """
-function StatsDictToDataFrame(ClasswiseStats, schema)
-    ClassName = repeat( [ "No Name" ], schema.LabelCount );
-    StatsList = [ "FMeasure", "Accuracy", "Specificity", "Precision", "Recall", "FAR", "FNR" ];
-    daf = DataFrame( :Statistics => StatsList);
-    for ( encode, lblname ) in schema.ToCold
-        ClassName[ encode ] = lblname
+function StatsDictToDataFrame(ClasswiseStats; digits = 4,
+                                StatsList = [   "FMeasure", "Accuracy", "Specificity",
+                                                "Precision", "Recall", "FAR", "FNR" ])
+    ClassName = repeat( [ "No Name" ], length(ClasswiseStats) );
+    daf = DataFrame( :Statistics => StatsList)
+    for (j, ( classnames, stats )) in enumerate(ClasswiseStats)
+        if typeof(classnames) == Symbol
+            classnames = string(classnames)
+        end
+        ClassName[ j ] = classnames
         ClassStats = zeros( length(StatsList) );
         for (i, stat) in enumerate( StatsList )
-            ClassStats[ i ] = ClasswiseStats[ lblname ][ stat ]
+            ClassStats[ i ] = round( stats[ stat ]; sigdigits = digits )
         end
-        daf[ Symbol( lblname ) ] = ClassStats
+        daf[ Symbol( classnames ) ] = ClassStats
     end
     return daf
 end
-
 
 """
     StatsToDataFrame(stats, schema, filepath, name)
@@ -172,17 +177,94 @@ in a specified `filepath` using the prescribed encoding `schema`.
 The statistics associated with the global analysis will end in a file name  of "-global.csv"
 and the local statistics for each class will end in a file named "-classwise.csv"
 """
-#Hard coded for now... V0.5.0 should be more generic...
-function StatsToCSVs(Stats, schema, filepath, name)
-    globaldf = StatsDictToDataFrame(Stats[1], schema)
-    localdf = StatsDictToDataFrame(Stats[2], schema)
+function StatsToCSVs(Stats, filepath, name)
+    globaldf = StatsDictToDataFrame(Stats[1])
+    localdf = StatsDictToDataFrame(Stats[2])
     CSV.write(Base.joinpath(filepath, name * "-global.csv"), globaldf)
     CSV.write(Base.joinpath(filepath, name * "-classwise.csv"), localdf)
 end
 
-#V0.5.0 should release a LaTeX report generator...
+"""
+    DataFrameToLaTeX( df, caption = "" )
 
-#Voting Schemes
+Converts a DataFrame object to a LaTeX table (string).
+"""
+function DataFrameToLaTeX( df; caption = "")
+    (Rows, Columns) = size(df)
+    ColmFormat = reduce(*, ["c" for i in 1:Columns])
+    ColmNames = join(string.(names(df))," & ")
+    retstr = "\\begin{table}[h] \n" *
+             "\t\\begin{tabular}{$ColmFormat} \n" *
+             "\t\t $ColmNames \\\\ \\hline \n"
+
+    TableInterior = [ "\t\t " * join(string.(values(df[row,:])), " & ") * " \\\\ \n" for row in 1:Rows]
+    TableInterior = reduce(*, TableInterior)
+
+    retstr *= TableInterior *
+              "\t \\end{tabular} \n"
+    retstr *= (length(caption) > 0) ? "\t \\caption{$caption} \n" : ""
+    retstr *= "\\end{table}\n"
+    return retstr
+end
+
+"""
+    StatsToLaTeX(Stats, filepath = nothing, name = nothing,
+                        digits = 3, maxcolumns = 6; Comment = "",
+                        StatsList = [   "FMeasure", "Accuracy", "Specificity",
+                                        "Precision", "Recall", "FAR", "FNR" ])
+
+Converts a MulticlassStats object to a LaTeX table (string or saved file).
+LaTeX tables contain rows of StatsList, and a maximum column number of maxcolumns.
+Information is presented with a set number of decimals(digits).
+
+"""
+function StatsToLaTeX(Stats, filepath = nothing, name = nothing;
+                        digits = 3, maxcolumns = 6, Comment = "",
+                        StatsList = [   "FMeasure", "Accuracy", "Specificity",
+                                        "Precision", "Recall", "FAR", "FNR"     ] )
+    globaldf = StatsDictToDataFrame(Stats[1]; digits = digits, StatsList = StatsList)
+    classes = [ k for k in keys( Stats[2] ) ]
+    localdf = []
+    if length(classes) > maxcolumns
+        maxtbls = Int( round( length( classes ) / maxcolumns ) )
+        tmpdf = StatsDictToDataFrame(Stats[2]; digits = digits, StatsList = StatsList)
+        for rn in 1 : maxtbls
+            colview = []
+            if rn < maxtbls
+                colview = classes[ ((maxcolumns * (rn - 1)) + 1) : (rn * maxcolumns)]
+            else
+                colview = classes[ ((maxcolumns * (rn - 1)) + 1) : end]
+            end
+            push!(localdf, tmpdf[:, Symbol.( vcat(["Statistics"], colview))] )
+        end
+    else
+        localdf = StatsDictToDataFrame(Stats[2]; digits = digits, StatsList = StatsList)
+    end
+    TimeStamp = Dates.format(now(), "mm-dd-YYYY HH:MM")
+    ReportStr = "\\documentclass[]{report}\n" *
+                "% Report Generated from ChemometricsTools.jl ($TimeStamp)\n" *
+                "% $Comment" *
+                "\n\\begin{document}\n"
+    ReportStr *= DataFrameToLaTeX( globaldf; caption = "Global Classification Statistics." )
+    if length(classes) > maxcolumns
+        for tdf in localdf
+            ReportStr *= DataFrameToLaTeX( tdf; caption = "Classwise Classification Statistics." )
+        end
+    else
+        ReportStr *= DataFrameToLaTeX( localdf; caption = "Classwise Classification Statistics." )
+    end
+    ReportStr *= "\n\\end{document}"
+    #If no name is given -> Return the string
+    if isa(filepath, Nothing) or isa(name, Nothing)
+        return ReportStr
+    else
+        open( filepath * name * ".tex", "w" ) do f
+            write( f, ReportStr )
+        end
+        return true
+    end
+end
+
 """
     Threshold(yhat; level = 0.5)
 

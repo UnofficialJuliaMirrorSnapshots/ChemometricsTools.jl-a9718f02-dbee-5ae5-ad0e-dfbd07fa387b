@@ -2,8 +2,8 @@ module ChemometricsTools
     using DataFrames, LinearAlgebra, Statistics, StatsBase, SparseArrays, Plots
     using CSV: read
     using Distributions #Could probably also get rid of this one...
-
-    #A generic function that I use everywhere to coerce a vecto dim 0 to a row vector...
+    using Dates
+    #A generic function that I use everywhere to coerce a vector dim 0 to a row vector...
     forceMatrix( a ) = ( length( size( a ) ) == 1 ) ? reshape( a, length(a), 1 ) : a
     forceMatrixT( a ) = ( length( size( a ) ) == 1 ) ? reshape( a, 1, length(a) ) : a
     export forceMatrix, forceMatrixT
@@ -14,7 +14,8 @@ module ChemometricsTools
 
     include("ClassificationMetrics.jl") #Has Docs
     export LabelEncoding, IsColdEncoded, HotToCold, ColdToHot, MulticlassStats,
-        Threshold, MulticlassThreshold, HighestVote, StatsFromTFPN, StatsDictToDataFrame
+        Threshold, MulticlassThreshold, HighestVote, StatsFromTFPN, StatsDictToDataFrame,
+        StatsToCSVs, DataFrameToLaTeX, StatsToLaTeX
 
     include("RegressionMetrics.jl") #Has Docs
     export ME, MAE, MAPE, SSE, MSE, RMSE, SSTotal, SSReg, SSRes, RSquare,
@@ -48,7 +49,8 @@ module ChemometricsTools
     export FirstDerivative, SecondDerivative, FractionalDerivative, SavitzkyGolay,
         DirectStandardization, OrthogonalSignalCorrection, MultiplicativeScatterCorrection,
         StandardNormalVariate, Scale1Norm, Scale2Norm, ScaleInfNorm, ScaleMinMax,
-        offsetToZero, boxcar, ALSSmoother, PerfectSmoother, CORAL, TransferByOrthogonalProjection
+        offsetToZero, boxcar, ALSSmoother, PerfectSmoother, CORAL, TransferByOrthogonalProjection,
+        Noise
 
     include("RegressionModels.jl") # Has Docs
     export ClassicLeastSquares, OrdinaryLeastSquares, RidgeRegression, PrincipalComponentRegression,
@@ -72,7 +74,7 @@ module ChemometricsTools
 
     include("CurveResolution.jl") #Has Docs
     export BTEMobjective, BTEM, NMF, SIMPLISMA, MCRALS, FNNLS, UnimodalFixedUpdate,
-        UnimodalUpdate
+        UnimodalUpdate, UnimodalLeastSquares
 
     include("PlottingTools.jl") #Has Docs
     export QQ, BlandAltman, plotchem, rectangle, IntervalOverlay
@@ -81,13 +83,13 @@ module ChemometricsTools
     export RollingWindow, EchoStateNetwork, TuneRidge, PredictFn, EWMA, Variance, Limits, update,
         SimpleAverage, NaiveForecast, update!, update
 
-    include("MultiWay.jl") #Has Docss
+    include("MultiWay.jl") #Has Docs
     export MultiCenter, MultiScale, MultiNorm, MultiPCA
 
     include("KernelDensityGenerator.jl") #Has Docs
     export Universe, SpectralArray, GaussianBand, LorentzianBand
 
-    include("SimpleGAs.jl") #No Docs yet :(
+    include("SimpleGAs.jl") #Has Docs
     export BinaryLifeform, Lifeform, SinglePointCrossOver, Mutate
 
     #Generic function for pulling data from within this package.
