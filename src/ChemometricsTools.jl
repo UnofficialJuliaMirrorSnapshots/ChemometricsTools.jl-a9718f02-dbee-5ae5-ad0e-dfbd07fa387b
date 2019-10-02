@@ -1,8 +1,8 @@
 module ChemometricsTools
-    using DataFrames, LinearAlgebra, Statistics, StatsBase, SparseArrays, RecipesBase#, Plots
+    using DataFrames, LinearAlgebra, Statistics, StatsBase, SparseArrays, RecipesBase
     using CSV: read
     using Distributions #Could probably also get rid of this one...
-    using Dates
+    using Dates#, Revise
     #A generic function that I use everywhere to coerce a vector dim 0 to a row vector...
     forceMatrix( a ) = ( length( size( a ) ) == 1 ) ? reshape( a, length(a), 1 ) : a
     forceMatrixT( a ) = ( length( size( a ) ) == 1 ) ? reshape( a, 1, length(a) ) : a
@@ -31,11 +31,11 @@ module ChemometricsTools
         CenterScale, RangeNorm, Logit, BoxCox
 
     include("Analysis.jl") #Has Docs
-    export PCA_NIPALS, PCA, LDA, CanonicalCorrelationAnalysis, ExplainedVariance,
-        findpeaks, RAFFT, AssessHealth
+    export PCA_NIPALS, PCA, LDA, CanonicalCorrelationAnalysis, findpeaks,
+        RAFFT, AssessHealth
 
     include("AnomalyDetection.jl") #Has docs
-    export OneClassJKNN, Q, Hotelling, Leverage
+    export OneClassJKNN
 
     include("ClassificationModels.jl") #Has docs
     export KNN, ProbabilisticNeuralNetwork, GaussianDiscriminant, LogisticRegression, MultinomialSoftmaxRegression,
@@ -53,15 +53,20 @@ module ChemometricsTools
         Noise
 
     include("RegressionModels.jl") # Has Docs
-    export ClassicLeastSquares, OrdinaryLeastSquares, RidgeRegression, PrincipalComponentRegression,
-        PartialLeastSquares, KernelRidgeRegression, LSSVM, ExtremeLearningMachine, PredictFn, sigmoid,
+    export ClassicLeastSquares, OrdinaryLeastSquares, RidgeRegression,
+        PrincipalComponentRegression, PartialLeastSquares, KernelRidgeRegression,
+        LSSVM, ExtremeLearningMachine, PredictFn, sigmoid,
         MonotoneRegression
+
+    include("ModelAnalysis.jl") #Has Docs
+    export ExplainedVariance, ExplainedVarianceX, ExplainedVarianceY,
+            Q, Hotelling, Leverage
 
     include("Trees.jl") #Has Docs: Omitted StumpOrNode & StumpOrNodeRegress
     export OneHotOdds, entropy, gini, ssd, ClassificationTree, RegressionTree, CART
 
     include("Ensembles.jl") #Has Docs
-    export MakeInterval, MakeIntervals, stackedweights, RandomForest
+    export MakeIntervals, stackedweights, RandomForest
 
     include("Sampling.jl") #Has Docs
     export VenetianBlinds, SplitByProportion, KennardStone
@@ -77,8 +82,8 @@ module ChemometricsTools
         UnimodalUpdate, UnimodalLeastSquares
 
     include("PlottingTools.jl") #Has Docs
-    export QQ, BlandAltman, rectangle, IntervalOverlay, DiscriminantAnalysisPlot,
-            DAPlot
+    export residualsplotrecipe, QQ, BlandAltman, rectangle, IntervalOverlay,
+        DiscriminantAnalysisPlot, DAPlot
 
     include("TimeSeries.jl") #Has Docs: Omitted EchoStateNetwork Fns
     export RollingWindow, EchoStateNetwork, TuneRidge, PredictFn, EWMA, Variance, Limits, update,

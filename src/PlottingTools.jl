@@ -1,3 +1,14 @@
+"""
+"""
+@recipe function residualsplotrecipe(rmodel::ChemometricsTools.RegressionModels, X, Y)
+    Yhat = rmodel(X)
+    seriestype := :scatter
+    title := "Residual vs Fitted Values Plot"
+    xlabel := Symbol("Fitted Values")
+    ylabel := Symbol("Residuals")
+    @series y := (Yhat .- Y, Yhat)
+end
+
 struct QQ
     StoredTuple::Tuple
 end

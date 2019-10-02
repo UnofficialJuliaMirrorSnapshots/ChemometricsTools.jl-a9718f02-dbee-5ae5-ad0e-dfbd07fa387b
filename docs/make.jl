@@ -1,6 +1,3 @@
-push!(LOAD_PATH,"/src/")
-using Pkg
-Pkg.activate(".")
 using Documenter, ChemometricsTools
 
 makedocs(
@@ -22,9 +19,11 @@ makedocs(
 						"Curve Resolution" => "Demos/CurveResolution.md",
 					   ],
 			 "API" => Any[
+			 			 "Kernel Density Generator" => "man/kerneldensity.md",
 			 			 "Preprocessing" => "man/Preprocess.md",
 			 			 "Transformations/Pipelines" => "man/Transformations.md",
 						 "Sampling" => "man/Sampling.md",
+						 "Analysis" => "man/Analysis.md",
 						 "Training" => "man/Training.md",
 						 "Time Series" => "man/TimeSeries.md",
 						 "Regression Models" => "man/RegressionModels.md",
@@ -33,6 +32,8 @@ makedocs(
 						 "Classification Metrics" => "man/classMetrics.md",
 						 "Tree Methods" => "man/Trees.md",
 						 "Ensemble Models" => "man/Ensemble.md",
+						 "Model Analysis" => "man/modelanalysis.md",
+						 "Plotting" => "man/Plotting.md",
 						 "Clustering" => "man/Clustering.md",
 						 "MultiWay" => "man/MultiWay.md",
 						 "Anomaly Detection" => "man/AnomalyDetection.md",
@@ -44,4 +45,9 @@ makedocs(
 		    			],
 			 "Full API" => "man/FullAPI.md",
 		]
+)
+
+deploydocs(
+    repo = "github.com/caseykneale/ChemometricsTools.jl.git",
+	branch = "gh-pages",
 )
