@@ -70,6 +70,13 @@ Scales the columns of `X` by the Inf-Norm of each row. Returns the scaled array.
 ScaleInfNorm(X) = X ./ reduce(max, X, dims = 2)
 
 """
+    ScaleFNorm(X)
+
+Scales EACH entry of `X` by the Frobenius Norm of. Returns the scaled array.
+"""
+ScaleFNorm(X) = X ./ FNorm( X )
+
+"""
     ScaleMinMax(X)
 
 Scales the columns of `X` by the Min and Max of each row such that no observation is greater than 1 or less than zero.
@@ -80,6 +87,14 @@ function ScaleMinMax(X)
     maxi = reduce(max, X, dims = 2)
     return (X .- mini) ./ (maxi .- mini)
 end
+
+"""
+    ScaleByIntensity(X, index)
+
+Scales the columns of `X` by the value of a peak at a specified `index` in each row.
+Returns the scaled array.
+"""
+ScaleByIntensity(X, index) = X ./ X[:,index]
 
 """
     offsetToZero(X)
@@ -104,7 +119,6 @@ function boxcar(X; windowsize = 3, fn = mean)
     end
     return result
 end
-
 
 """
     ALSSmoother(X; lambda = 100, p = 0.001, maxiters = 10)
@@ -155,8 +169,7 @@ function PerfectSmoother(X; lambda = 100)
     return output
 end
 
-#Pretty sure this is reversible like a transform, but don't have time to solve it
-#in reverse yet...
+#Pretty sure this is reversible like a transform, but don't have time to solve the inverse yet...
 struct MultiplicativeScatterCorrection
     BiasedMeans
     Bias
@@ -164,13 +177,13 @@ struct MultiplicativeScatterCorrection
 end
 
 """
-    MultiplicativeScatterCorrection(Z)
+    MultiplicativeScatterCorrection(Z::Array)
 
 Creates a MultiplicativeScatterCorrection object from the data in Z
 
 Martens, H. Multivariate calibration. Wiley
 """
-function MultiplicativeScatterCorrection(Z)
+function MultiplicativeScatterCorrection(Z::Array)
     BiasedMeans = hcat( ones( ( size(Z)[2], 1) ) , StatsBase.mean( Z, dims = 1 )[1,:] )
     Coeffs = ( BiasedMeans' * BiasedMeans ) \ ( Z * BiasedMeans )'
     MultiplicativeScatterCorrection( BiasedMeans, Coeffs[1,:], Coeffs[2,:] )
@@ -271,8 +284,6 @@ function SavitzkyGolay(X, Delta, PolyOrder, windowsize::Int)
     return output[:, (offset + 1) : (end - offset)]
 end
 
-
-#Direct Standardization Calibration Transfer Method
 struct DirectStandardizationXform
     pca::PCA
     TransferMatrix::Array
@@ -300,7 +311,6 @@ end
 Applies a the transform from a learned direct standardization object `DSX` to new data `X`.
 """
 function (DSX::DirectStandardizationXform)(X; Factors = length(DSX.pca.Values))
-    #Transform data into PCA
     Into = DSX.pca(X; Factors = Factors)
     Bridge = Into * DSX.TransferMatrix[1:Factors,1:Factors]
     return DSX.pca(Bridge; Factors = Factors, inverse = true)
@@ -352,7 +362,6 @@ function (OSC::OrthogonalSignalCorrection)(Z; Factors = 2)
     return X
 end
 
-
 struct TransferByOrthogonalProjection
     Factors::Int
     vars::Int
@@ -384,8 +393,6 @@ end
 struct CORAL
     coralmat::Array
 end
-
-
 """
     CORAL(X1, X2; lambda = 1.0)
 

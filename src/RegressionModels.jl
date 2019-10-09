@@ -17,7 +17,7 @@ end
 
 Constructs a ClassicLeastSquares regression model of the form `Y` = A`X` with or without a `Bias` term. Returns a CLS object.
 """
-function ClassicLeastSquares( X, Y; Bias = false )
+function ClassicLeastSquares( X::Array, Y::Array; Bias = false )
     Z = (Bias) ? hcat( ones( size( X )[ 1 ] ), X ) : X
     return ClassicLeastSquares(Base.inv(Z' * Z) * Z' * Y, Bias)
 end
@@ -37,6 +37,7 @@ function PredictFn(X, M::Union{ClassicLeastSquares, RidgeRegression})
     Z = ( M.Bias ) ? hcat( ones(size( X )[ 1 ] ), X ) : X
     return Z * M.Coefficients
 end
+
 """
     (M::ClassicLeastSquares)(X)
 
@@ -77,6 +78,7 @@ function KernelRidgeRegression( X, Y, Penalty; KernelParameter = 0.0, KernelType
     Kern = Kernel( KernelParameter, KernelType, X )
     return KRR(Kern, RidgeRegression( Kern(X), Y, Penalty ) )
 end
+
 """
     (M::KRR)(X)
 
@@ -129,6 +131,7 @@ function PrincipalComponentRegression(PCAObject::PCA, Y )
 end
 
 PredictFn(X, M::PrincipalComponentRegression) = M.CLS( M.PCA( X ) )
+
 """
     (M::PrincipalComponentRegression)( X )
 
