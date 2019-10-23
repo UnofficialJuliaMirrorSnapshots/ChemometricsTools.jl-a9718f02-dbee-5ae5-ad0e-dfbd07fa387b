@@ -1,4 +1,66 @@
 """
+    univariatecalibrationrecipe(rmodel::UnivariateCalibration, X, Y;
+                                            decimals = 3, text_location = :topleft)
+
+Plots the calibration trend line of a UnivariateCalibration object given an input `X` and ground-truth `Y`.
+"""
+@recipe function univariatecalibrationrecipe(rmodel::UnivariateCalibration, X, Y;
+                                            decimals = 3, text_location = :topleft)
+    Yhat = rmodel.(X)
+    seriestype := :scatter
+    title := "Univariate Regression Plot"
+    xlabel := Symbol("Fitted Values")
+    ylabel := Symbol("Residuals")
+    label := "Actual Values"
+    @series y := (X, Y)
+    seriestype := :straightline
+    label := "Trend-Line"
+    slope, bias, Rsq = string.( round.( [ rmodel.Slope, rmodel.Offset, rmodel.Rsq ], digits = decimals ) )
+    @series begin
+        annotation := (text_location, "y = " * slope * " x + " * bias * "\n R2 = " * Rsq )
+        y := ( [0, 1], [rmodel.Offset, rmodel.Offset + rmodel.Slope])
+    end
+end
+
+"""
+    standard_addition_recipe(rmodel::StandardAddition, X, Y;
+                                            decimals = 3, text_location = :topleft)
+
+Plots a trend line of a StandardAddition object given an input `X` and ground-truth `Y`.
+"""
+@recipe function standard_addition_recipe(rmodel::StandardAddition, X, Y;
+                                            decimals = 3, text_location = :topleft)
+    seriestype := :scatter
+    legend := :bottomright
+    title := "Standard Addition Plot"
+    xlabel := Symbol("Spike")
+    ylabel := Symbol("Response")
+    label := "Experiment"
+    @series y := (X, Y)
+    seriestype := :straightline
+    label := "Trend-Line"
+    slope, bias, Rsq = string.( round.( [ rmodel.Slope, rmodel.Offset, rmodel.Rsq ], digits = decimals ) )
+    @series begin
+        y := ( [0, 1], [rmodel.Offset, rmodel.Offset + rmodel.Slope])
+    end
+    seriestype := :scatter
+    label := "Unknown"
+    @series y := ( [ rmodel.Unknown ], [ 0 ] )
+    seriestype := :hline
+    label := ""
+    color := :black
+    @series y := [ 0 ]
+    seriestype := :vline
+    label := ""
+    color := :black
+    @series begin
+        annotation := (text_location, "y = " * slope * " x + " * bias * "\n R2 = " * Rsq )
+        x := [ X[1] ]
+    end
+end
+
+
+"""
     residualsplotrecipe(rmodel::ChemometricsTools.RegressionModels, X, Y)
 
 Plots the residuals of a RegressionModel object given an input `X` and ground-truth `Y`.
@@ -135,14 +197,14 @@ Plots a barchart overlay over a spectra according to an `IntervalOverlay` object
         xloc = line[1]
         #@series y := rectangle(w,h,xloc,0)
         #seriestype := :shape
-        @series ( xloc .+ [ 0, w, w, 0 ], [ 0, 0, h, h ] ) 
+        @series ( xloc .+ [ 0, w, w, 0 ], [ 0, 0, h, h ] )
     end
 end
 
 """
     PCA/LDA(::Union{PCA, LDA}; Axis = [1,2])
 
-Plots scores of PCA/LDA analysis.
+Plots scores of `PCA`/`LDA` object using the defined `Axis'`.
 """
 @recipe function f(DA::Union{PCA, LDA}; Axis = [1,2])
     @assert(length(Axis) == 2, "Axis for PCA/LDA plot must be of length 2." )
@@ -160,16 +222,18 @@ Plots scores of PCA/LDA analysis.
     @series y := ( DA.Scores[:,Axis[2]], DA.Scores[:,Axis[1]] )
 end
 
-# x = -pi:(pi/200):pi;
-# A = transpose((sin.(x) .+ 1.0) .+ randn(400,3) ./ 50);
-# Intervals = [ (((i-1) * 10) + 1, ((i) * 10)) for i in 1:40 ];
-# Err = rand(40);
-# IOo = IntervalOverlay(A,Intervals,Err)
-# Plots.plot(IOo)
-
 """
-    DiscriminantAnalysisPlot(DA, GD, YHot, LblEncoding, UnlabeledData, Axis = [1,2], Confidence = 0.90)
-...
+    DiscriminantAnalysisPlot(DA, GD, YHot, LblEncoding, UnlabeledData,
+                                Axis = [1,2], Confidence = 0.90)
+
+An object to hold all the information needed to plot a discriminant analysis.
+`DA` = `LDA`/`PCA` object
+`GD` = `GuassianDiscriminant` object
+`YHot` = One hot encoded y vectors
+`LblEncoding` = a `ClassificationLabel` object
+`UnlabeledData` = data that does not have a known label (see where it falls in the plot).
+`Axis` = principal or discriminant axis' to display
+`Confidence` = Significance value from 0-1 for the confidence ellipses.
 """
 struct DAPlot
     DA
