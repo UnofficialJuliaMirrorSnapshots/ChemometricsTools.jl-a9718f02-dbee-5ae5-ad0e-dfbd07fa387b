@@ -330,3 +330,79 @@ end
 Returns a 1 hot encoded inference from `X` using a LinearPerceptron object.
 """
 (L::linearperceptron)(X) = X * L.W
+
+struct SIMCA
+    PCAs::Array{ Union{ PCA, LDA }, 1 }
+    Factors::Array{Int,1}
+    Preprocessers::Array
+    Classes::Int
+    ClassSizes::Array{Int,1}
+    ClassLimits::Array{Float64,1}
+end
+
+"""
+    SIMCA( X, Y;
+            VarianceExplained = repeat([0.95], size(Y)[2]),
+            Quantile = repeat([0.95], size(Y)[2]) )
+
+Returns a Soft-Independent Modelling of Class Analogies(SIMCA) classification model
+ object from `X` and one hot encoded `Y`.
+"""
+function SIMCA( X, Y;
+                VarianceExplained = repeat([0.95], size(Y)[2]),
+                Quantile = repeat([0.95], size(Y)[2]) )
+    if length( VarianceExplained ) == 1
+        VarianceExplained = repeat( [ VarianceExplained ], size( Y )[ 2 ] )
+    end
+    if length( Quantile ) == 1
+        Quantile = repeat( [ Quantile ], size( Y )[ 2 ] )
+    end
+    (Obs, ClassNumber) = size( Y )
+    Vars = size(X)[2]
+    ClassSizes = Int.(zeros(ClassNumber))
+    ClassLimits = zeros(ClassNumber)
+    Factors = Int.(zeros(ClassNumber))
+    residual_variance = zeros(ClassNumber)
+    PCAs = []
+    Preprocessers = []
+    for class in 1 : ClassNumber
+        Members = Y[ :, class ] .== 1
+        ClassSizes[class] = sum(Members)
+        @assert(ClassSizes[class] > 1, "Classes must have more than 1 member to create a PCA basis...")
+        CS = Center(X[Members,:])
+        Xcs = CS( X[Members,:] )
+        pca = PCA( Xcs )
+        factors = findfirst( cumsum(ExplainedVariance(pca)) .> VarianceExplained[class] )
+        residual_variance = Xcs .- (pca(Xcs; Factors = factors) * pca.Loadings[1:factors,:])
+        DOF = ( ClassSizes[class] - factors - 1 ) * ( Vars - factors )
+        S0 = sum(residual_variance .^ 2) / DOF
+        ClassLimits[class] = S0 * sqrt( quantile( Distributions.FDist( ( Vars - factors ) , DOF ), Quantile[class]) )
+        Factors[class] = factors
+        residual_variance[class] = S0
+        push!( Preprocessers, CS )
+        push!( PCAs, pca )
+    end
+    return SIMCA(PCAs, Factors, Preprocessers, ClassNumber, ClassSizes, ClassLimits )
+end
+
+"""
+    (s::SIMCA)( X )
+
+Returns a 1 hot encoded inference from `X` from a SIMCA model.
+"""
+function ( s::SIMCA )( X )
+    Obs, Vars = size( X )
+    Y = zeros( Obs, s.Classes )
+    for class in 1 : s.Classes
+        Xp = s.Preprocessers[ class ]( X )
+        F = s.Factors[ class ]
+        XProject = s.PCAs[ class ]( Xp ; Factors = F )
+        residuals = Xp .- ( XProject * s.PCAs[ class ].Loadings[1:F,:] )
+        Y[:, class] = sqrt.( sum( residuals .^ 2, dims = 2 ) ./ ( Vars - F ) )
+        #Not in traditional method but convenient for modern classification formalism
+        Y[ : , class ] .= (s.ClassLimits[class] .- Y[ : , class ])
+        #Remove outliers by Q stat...
+        Y[ Y[:, class] .< 0.0 , class ] .= 0.0
+    end
+    return Y
+end

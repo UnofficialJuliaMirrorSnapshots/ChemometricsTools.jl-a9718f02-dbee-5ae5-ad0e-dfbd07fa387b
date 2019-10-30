@@ -1,5 +1,4 @@
 #This file will have 0 dependencies...
-
 """
     rbinomial( p, size... )
 
@@ -144,17 +143,6 @@ function SampleSkewness(X)
     return ( sqrt( N * (N - 1) ) / (N - 2) ) * Skewness( X )
 end
 
-
-#This was written for an algorithm and didn't fit in anywhere so for now it's kept
-#but it may not have use...
-struct PermutedVectorPair{A,B,C}
-    vec1::A
-    vec2::B
-    operation::C
-    i::Int
-    length::Int
-end
-
 """
     CorrelationMatrix(X; DOF_used = 0)
 
@@ -172,6 +160,32 @@ function CorrelationMatrix(X; DOF_used = 0)
     XstXs = (1 / obs) * (Xs' * Xs) #get covariance matrix
     D = LinearAlgebra.Diagonal( 1 ./ sqrt.( LinearAlgebra.diag( XstXs ) ) )#define the scaling matrix
     return D * XstXs * D
+end
+
+"""
+    CorrelationVectors( A, B )
+
+Returns the Pearson correlation of 2 vectors.
+
+This is only included because finding a legible implementation was hard for me
+to find some years ago (for the reader).
+"""
+function CorrelationVectors( A, B )
+    obs = length( A )
+    @assert( obs == length( B ), "Vectors must have the same length." )
+    A = ( A .- mean(A) )
+    B = ( B .- mean(B) )
+    return ( A' * B ) * ( 1 / ( (obs - 1) * std( A ) * std( B )) )
+end
+
+#This was written for an algorithm and didn't fit in anywhere so for now it's kept
+#but it may not have use...
+struct PermutedVectorPair{A,B,C}
+    vec1::A
+    vec2::B
+    operation::C
+    i::Int
+    length::Int
 end
 
 """
