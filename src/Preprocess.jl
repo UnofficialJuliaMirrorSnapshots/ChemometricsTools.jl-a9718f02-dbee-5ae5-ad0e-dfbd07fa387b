@@ -270,10 +270,11 @@ function ConvFilter1DFFT(a, filter)
     @assert(length(filter) <= length(a), "Length of filter should be less than the length of the vector." )
     NewSize = length(a) + length(filter) - 1;
     ADiff = Int(round((NewSize - length(a)) ))
+    ADiffhalf = Int(floor(ADiff / 2))
     filterDiff = Int(round((NewSize - length(filter)) ))
     X = fft( vcat( a, zeros( ADiff ) ) )
     H = fft( vcat( filter, zeros( filterDiff ) ) )
-    return real.(ifft( X .* H ))[ (ADiff+1):(end-ADiff) ]
+    return real.(ifft( X .* H ))[ (ADiffhalf + 1):(end-ADiffhalf) ]
 end
 
 """
@@ -326,6 +327,30 @@ function LinearResample(X, newsize)
       interpolated[inds] = (newsampling[inds] .* slope) .+ offset
    end
    return interpolated
+end
+
+"""
+    SincInterpolation(Y, S, Up)
+    Y - vector of a line shape
+    S - Sampled domain of Y
+    Up - Upsampled X vector
+
+Refactored from: https://gist.github.com/endolith/1297227#file-sinc_interp-m
+"""
+SincInterpolation(Y, S, Up) = sinc.( (Up .- S') ./ (S[2] - S[1]) ) * Y
+
+"""
+    FourierUpsample(X, newlength)
+
+zero pads a vector `X` in the frequency domain then converts it back to the time domain.
+
+"""
+function FourierUpsample(X, newlength)
+    len = length(x)
+    @assert(newlength > len, "New length must be greater than the vector length to upsample!")
+    xfft = fft(x)
+    left = Int( floor( (len+1) / 2 ) )
+    return real.(ifft( vcat(xfft[1:left], zeros(newlength - len), xfft[(left+1):end] ) )) .* (newlength/len)
 end
 
 struct DirectStandardizationXform
